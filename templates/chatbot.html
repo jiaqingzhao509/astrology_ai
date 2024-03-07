@@ -1,0 +1,273 @@
+{% extends 'base.html' %}
+
+{% block styles %}
+<style>
+    body, html {
+      height: 100%;
+    }
+
+    .messages-box {
+      flex: 1;
+      overflow-y: auto;
+    }
+
+    .messages-list {
+      padding-left: 0;
+    }
+
+    .message {
+      margin-bottom: 15px;
+      list-style: none;
+    }
+
+    .message-text {
+      padding: 10px;
+      border-radius: 5px;
+    }
+
+    .sent {
+      background-color: #dcf8c6;
+      align-self: flex-end;
+    }
+
+    .received {
+      background-color: #f1f0f0;
+      align-self: flex-start;
+    }
+
+    .message-form {
+      display: flex;
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      padding: 10px;
+      background-color: #f8f9fa;
+    }
+
+    .message-input {
+      flex: 1;
+      border-radius: 0;
+      border-right: none;
+    }
+
+    .btn-send {
+      border-radius: 0;
+    }
+
+    .chat-container {
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .top-bar {
+    background-color: #007bff; /* Match the card header */
+    color: white;
+    padding: 10px 15px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .top-bar select, .top-bar input[type="time"], .top-bar input[type="date"], .top-bar button {
+    padding: 5px;
+    margin-left: 5px;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    cursor: pointer;
+  }
+
+  .top-bar select:focus, .top-bar input[type="time"]:focus, .top-bar input[type="date"]:focus, .top-bar button:focus {
+    outline: none;
+    border-color: #5cb3fd;
+  }
+
+  .top-bar button {
+    background-color: #28a745; /* Bootstrap success color */
+    color: white;
+    border: none;
+  }
+
+  .top-bar button:hover {
+    background-color: #218838;
+  }
+  </style>
+{% endblock %}
+
+
+{% block content %}
+
+<div class="top-bar">
+  <!-- Date Selector -->
+  <div class="date-selector">
+    <label for="date">Date:</label>
+    <input type="date" id="date" name="date">
+  </div>
+
+  <!-- Time Selector -->
+  <div class="time-selector">
+    <label for="time">Time:</label>
+    <input type="time" id="time" name="time">
+  </div>
+
+  <!-- City Selector -->
+  <div class="city-selector">
+    <input type="text" id="city" name="city" placeholder="Type a city name...">
+  </div>
+  
+
+  <!-- Start Chat Button -->
+  <button type="button" id="start-chat">Start Chat</button>
+</div>
+
+
+<div class="chat-container" style="display: none;">
+  <div class="card flex-grow-1">
+    <div class="card-header bg-primary text-white">Chat</div>
+    <div class="card-body messages-box">
+      
+      <ul class="list-unstyled messages-list">
+        
+        <li class="message received">
+          <div class="message-text">
+            <div class="message-sender">
+              <b>Starlord</b>
+            </div>
+            <div class="message-content">
+              Welcome, seeker of the stars, to a place where celestial bodies illuminate paths unseen and destinies intertwine. Let's embark on a journey through the cosmic tapestry to uncover the mysteries written in the night sky, just for you.
+            </div>
+          </div>
+        </li>
+      </ul>
+      
+    </div>
+    <br><br>
+    <br><br>
+    <br><br>
+  </div>
+  <form class="message-form">
+    {%csrf_token%}
+    <div class="input-group">
+      <input type="text" class="form-control message-input" placeholder="Type your message...">
+      <div class="input-group-append">
+        <button type="submit" class="btn btn-primary btn-send">Send</button>
+      </div>
+    </div>
+  </form>
+</div>
+
+<script>
+  const messagesList = document.querySelector('.messages-list');
+  const messageForm = document.querySelector('.message-form');
+  const messageInput = document.querySelector('.message-input');
+
+  messageForm.addEventListener('submit', (event) => {
+    event.preventDefault();
+
+    const message = messageInput.value.trim();
+    if (message.length === 0) {
+      return;
+    }
+
+    const messageItem = document.createElement('li');
+    messageItem.classList.add('message', 'sent');
+    messageItem.innerHTML = `
+      <div class="message-text">
+        <div class="message-sender">
+          <b>You</b>
+        </div>
+        <div class="message-content">
+          ${message}
+        </div>
+      </div>`;
+    messagesList.appendChild(messageItem);
+    messagesList.scrollTop = messagesList.scrollHeight; // Scroll to the bottom
+
+    messageInput.value = '';
+
+    fetch('', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+      body: new URLSearchParams({
+        'csrfmiddlewaretoken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+        'message': message
+      })
+    })
+    .then(response => response.json())
+    .then(data => {
+      const response = data.response;
+      const messageItem = document.createElement('li');
+      messageItem.classList.add('message', 'received'); // Corrected spelling
+      messageItem.innerHTML = `
+        <div class="message-text">
+          <div class="message-sender">
+            <b>Starlord</b>
+          </div>
+          <div class="message-content">
+            ${response}
+          </div>
+        </div>`;
+      messagesList.appendChild(messageItem);
+      messagesList.scrollTop = messagesList.scrollHeight; // Scroll to the bottom
+    })
+    .catch(error => console.error('Error:', error));
+  });
+  
+  // city open cage geo locator
+  document.getElementById('start-chat').addEventListener('click', function() {
+  const city = document.getElementById('city').value;
+  const date = document.getElementById('date').value;
+  const time = document.getElementById('time').value;
+
+  // Call OpenCage API to get lat-long info
+ 
+  if (!city || !date || !time) {
+    alert('Please fill in all fields.');
+    return;
+  }
+
+  fetch(`https://api.opencagedata.com/geocode/v1/json?q=${encodeURIComponent(city)}&key=1e660713cb444c40ae916eaa55feaf58`)
+    .then(response => response.json())
+    .then(data => {
+      if (!data.results.length) {
+        alert('Invalid city name. Please try again.');
+        return;
+      }
+      const lat = data.results[0].geometry.lat;
+      const lng = data.results[0].geometry.lng;
+
+      fetch('start-chat/', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+        },
+        body: JSON.stringify({ city, date, time, lat, lng })
+      })
+      .then(response => response.json())
+      .then(data => {
+        if (data.status === 'success') {
+          // Enable or show the chat container
+          document.querySelector('.chat-container').style.display = 'flex';
+          document.querySelector('.message-input').disabled = false;
+        } else {
+          // Handle backend errors
+          alert('Failed to start chat. Please try again.');
+        }
+      })
+      .catch(error => {
+        console.error('Error:', error);
+        alert('An error occurred. Please try again.');
+      });
+    })
+    .catch(error => {
+      console.error('Error calling OpenCage API:', error);
+      alert('An error occurred with the location service. Please try again.');
+    });
+});
+
+</script>
+
+
+{% endblock %}
