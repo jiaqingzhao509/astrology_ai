@@ -7,12 +7,23 @@ from openai import OpenAI
 from . import prompts,charts
 import requests
 import datetime
+import anthropic
 
-openai_api_key = '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'
-client = OpenAI(
-    # This is the default and can be omitted
-    api_key=openai_api_key,
+
+#open ai
+
+# openai_api_key = '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'
+# client = OpenAI(
+#     # This is the default and can be omitted
+#     api_key=openai_api_key,
+# )
+
+client = anthropic.Anthropic(
+    # defaults to os.environ.get("ANTHROPIC_API_KEY")
+    api_key="",
 )
+
+
 
 # Create your views here.
 
@@ -52,30 +63,51 @@ def start_chat(request):
                 return JsonResponse({'status': 'error', 'message': 'Invalid request'}, status=400)
                 
         response_data = "The following info are always in the order of Planet:[house number, sign, degree]. The natal chart is " + str(natal_info) + ". The natal asc is " + str(natal_ascmc) + ". The yearly info follows: " + str(years_dict) + ". Once you see those reply 'ok'"
-        request.session['system_context'] = {"role": "system", "content": prompts.initializing_prompt + prompts.response_requirements + response_data} # + prompts.response_requirements
+        request.session['system_context'] = prompts.initializing_prompt + prompts.response_requirements + response_data
+        #request.session['system_context'] = {"role": "system", "content": prompts.initializing_prompt + prompts.response_requirements + response_data} # + prompts.response_requirements
         return JsonResponse({'status': 'success', 'data': response_data})
 
     return JsonResponse({'status': 'error', 'message': 'Invalid request'}, status=400)
 
-def ask_openai(message, message_history, system_context=None):
-    messages_payload = message_history.copy()
-    if system_context:
-        # Prepend system context to the message history for the initial call
-        messages_payload = [system_context] + messages_payload
+# def ask_openai(message, message_history, system_context=None):
+#     messages_payload = message_history.copy()
+#     if system_context:
+#         # Prepend system context to the message history for the initial call
+#         messages_payload = [system_context] + messages_payload
 
 
-    messages_payload.append({"role": "user", "content": message})
-    print(messages_payload)
-    response = client.chat.completions.create(
-        messages=messages_payload,
-        model='gpt-4-0125-preview',
-        n=1,
-        temperature=0.7,
-        max_tokens = 256
-    )
+#     messages_payload.append({"role": "user", "content": message})
+#     print(messages_payload)
+#     response = client.chat.completions.create(
+#         messages=messages_payload,
+#         model='gpt-3.5-turbo-0125',
+#         n=1,
+#         temperature=0.7,
+#         max_tokens = 256
+#     )
     
-    answer = response.choices[0].message.content.strip()
+#     answer = response.choices[0].message.content.strip()
+#     return answer
+
+def ask_claude(message, message_history, system_context):
+    # if message_history == []: 
+    #     system_content = system_context
+    # else:
+    #     system_context = ''
+
+    messages_payload = message_history.copy()
+    messages_payload.append({"role": "user", "content": message})
+    #print(messages_payload)
+    response = client.messages.create(
+    model="claude-3-sonnet-20240229",
+    system= system_context,
+    max_tokens=512,
+    messages=messages_payload
+    )
+    print(response.content[0].text)
+    answer = response.content[0].text.strip()
     return answer
+
 
 def chatbot(request):
     if request.method == 'POST':
@@ -97,7 +129,8 @@ def chatbot(request):
 
         # Call OpenAI with the current message, history, and system context (only for the first message)
         # system_context if not conversation_history else None
-        response = ask_openai(message, conversation_history, system_context)
+        #response = ask_openai(message, conversation_history, system_context)
+        response = ask_claude(message, conversation_history, system_context)
 
         # Update and store the conversation history in the session, excluding the system context after the first use
         conversation_history.append({"role": "user", "content": message})
